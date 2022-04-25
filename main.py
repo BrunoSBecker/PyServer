@@ -12,9 +12,7 @@ class Server():
 
         print("Socket created")
 
-        self.connectionHandler()
-
-    def connectionHandler(self):
+    def start(self):
         self.serverSocket.listen(5)
 
         print("Socket listening on http://{}:{}/".format(self.host, self.port))
@@ -25,20 +23,18 @@ class Server():
             print("\n========\n")
 
             request = self.requestHandler(conn.recv(1024).decode('utf-8').splitlines())
-            self.routerCheck()
-
-            
-                file = open('.'+request['headLine'][1],'r')
+            try:
+                path = self.routeHandler(request['headLine'][1], request['headLine'][0])
+                file = open('.'+path,'r')
 
                 responseBody = ''.join([x+'\n' for x in file.readlines()])
-                print(responseBody)
                 respondeHeadLine = "HTTP/1.1 200 ok\n"
                 respondeHeaders = "server: pyserver\n content-type: text/html\n connection: close\n\n"
 
                 conn.send(''.join([respondeHeadLine, respondeHeaders, responseBody]).encode())
                 conn.close()
             except:
-                conn.send('404 not found'.encode())
+                conn.send('HTTP/1.1 404 not-found\n server: pyserver\n content-type: text/html\n connection: close\n\n'.encode())
                 conn.close()
 
             print(request['headLine'][1])
@@ -56,22 +52,14 @@ class Server():
 
             return {'headLine': requestHeadline, 'headers': requestHeaders, 'body': requestBody}
 
-    def routerCheck(self, request):
-        pass
+    def setRoute(self, method, route, path):
+        self.routes[route] = [method, path]
 
-    class router():
-
-        def __init__(self):
-            self.routes = {}
-
-        def set_route(self, method, path):
-            self.routes[path] = method
-
-        def routeHandler(self, path, method):
-            if self.routes[path] and self.routes[path] == method:
-                return path
-            else: 
-                return False
+    def routeHandler(self, route, method):
+        if self.routes[route] and self.routes[route][0] == method:
+            return self.routes[route][1]
+        else: 
+            return False
 
 """
 Request 
@@ -94,7 +82,8 @@ send Path   send Error
 """
 
 if __name__ == "__main__": 
-    pyServer = Server(8000, '127.0.0.1')
-    router = pyServer.router()
+    pyServer = Server(8080, '127.0.0.1')
 
-    router.set_route('GET', '/') 
+    pyServer.setRoute('GET', '/', '/index.html') 
+    pyServer.setRoute('GET', '/about-us', '/about.html')
+    pyServer.start()
